@@ -1,3 +1,5 @@
+github.com/alexbrainman/sspi v0.0.0-20200928142253-2a432fede40d h1:uh7PpHCQf5O4XbmMvsw0WWKKAsqJTazrgjAa/jzIFJs=
+github.com/alexbrainman/sspi v0.0.0-20200928142253-2a432fede40d/go.mod h1:976q2ETgjT2snVCf2ZaBnyBbVoPERGjUz+0sofzEfro=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/gorilla/securecookie v1.1.1 h1:miw7JPhV+b/lAHSXz4qd/nN9jRiAFV5FwjeKyCS8BvQ=

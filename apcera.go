@@ -3,8 +3,7 @@
 package sshkrb5
 
 import (
-	"errors"
-
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/openshift/gssapi"
 )
 
@@ -20,11 +19,15 @@ func NewClient() (c *Client, err error) {
 }
 
 func NewClientWithCredentials(_, _, _ string) (*Client, error) {
-	return nil, errors.New("not supported")
+	return nil, errNotSupported
 }
 
 func NewClientWithKeytab(_, _, _ string) (*Client, error) {
-	return nil, errors.New("not supported")
+	return nil, errNotSupported
+}
+
+func (c *Client) Close() error {
+	return multierror.Append(c.DeleteSecContext(), c.lib.Unload())
 }
 
 func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
@@ -46,21 +49,24 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 	}
 
 	var input *gssapi.Buffer
-	if token != nil {
+	switch token {
+	default:
 		input, err = c.lib.MakeBufferBytes(token)
 		if err != nil {
 			return nil, false, err
 		}
 		defer input.Release()
-	}
 
-	ctx, _, output, _, _, err := c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_MECH_KRB5, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
-	defer output.Release()
-	if err != nil && !c.lib.LastStatus.Major.ContinueNeeded() {
-		return nil, false, err
+		fallthrough
+	case nil:
+		ctx, _, output, _, _, err := c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_C_NO_OID, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
+		defer output.Release()
+		if err != nil && !c.lib.LastStatus.Major.ContinueNeeded() {
+			return nil, false, err
+		}
+		c.ctx = ctx
+		return output.Bytes(), c.lib.LastStatus.Major.ContinueNeeded(), nil
 	}
-	c.ctx = ctx
-	return output.Bytes(), c.lib.LastStatus.Major.ContinueNeeded(), nil
 }
 
 func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
@@ -81,5 +87,6 @@ func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
 
 func (c *Client) DeleteSecContext() (err error) {
 	err = c.ctx.DeleteSecContext()
+	c.ctx = nil
 	return
 }

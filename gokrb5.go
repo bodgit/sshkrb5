@@ -20,18 +20,9 @@ import (
 	"github.com/jcmturner/gokrb5/v8/types"
 )
 
-type clientState int
-
-const (
-	clientStateInitial clientState = iota
-	clientStateMutual
-	clientStateReady
-)
-
 type Client struct {
 	client *client.Client
 	key    types.EncryptionKey
-	state  clientState
 }
 
 func loadCache() (*credentials.CCache, error) {
@@ -144,6 +135,12 @@ func NewClientWithKeytab(domain, username, path string) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) Close() error {
+	err := c.DeleteSecContext()
+	c.client.Destroy()
+	return err
+}
+
 func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
 	gssapiFlags := []int{
 		gssapi.ContextFlagMutual,
@@ -153,8 +150,8 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 		gssapiFlags = append(gssapiFlags, gssapi.ContextFlagDeleg)
 	}
 
-	switch c.state {
-	case clientStateInitial:
+	switch token {
+	case nil:
 		tkt, key, err := c.client.GetServiceTicket(strings.ReplaceAll(target, "@", "/"))
 		if err != nil {
 			return nil, false, err
@@ -192,10 +189,8 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 			return nil, false, err
 		}
 
-		c.state = clientStateMutual
-
 		return b, true, nil
-	case clientStateMutual:
+	default:
 		var aprep spnego.KRB5Token
 		if err := aprep.Unmarshal(token); err != nil {
 			return nil, false, err
@@ -209,13 +204,7 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 			return nil, false, errors.New("didn't receive an AP_REP")
 		}
 
-		c.state = clientStateReady
-
 		return nil, false, nil
-	case clientStateReady:
-		return nil, false, errors.New("FIXME")
-	default:
-		return nil, false, errors.New("FIXME")
 	}
 }
 
@@ -235,8 +224,5 @@ func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
 }
 
 func (c *Client) DeleteSecContext() error {
-
-	c.client.Destroy()
-
 	return nil
 }

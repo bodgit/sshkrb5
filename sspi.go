@@ -6,20 +6,20 @@ import (
 	"strings"
 
 	"github.com/alexbrainman/sspi"
-	"github.com/alexbrainman/sspi/negotiate"
+	"github.com/alexbrainman/sspi/kerberos"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
 type Client struct {
 	creds *sspi.Credentials
-	ctx   *negotiate.ClientContext
+	ctx   *kerberos.ClientContext
 }
 
 func NewClient() (*Client, error) {
 
 	c := new(Client)
 
-	creds, err := negotiate.AcquireCurrentUserCredentials()
+	creds, err := kerberos.AcquireCurrentUserCredentials()
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func NewClientWithCredentials(domain, username, password string) (*Client, error
 
 	c := new(Client)
 
-	creds, err := negotiate.AcquireUserCredentials(domain, username, password)
+	creds, err := kerberos.AcquireUserCredentials(domain, username, password)
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +58,13 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 
 	switch token {
 	case nil:
-		ctx, output, err := negotiate.NewClientContextWithFlags(c.creds, strings.ReplaceAll(target, "@", "/"), sspiFlags)
+		ctx, completed, output, err := kerberos.NewClientContextWithFlags(c.creds, strings.ReplaceAll(target, "@", "/"), sspiFlags)
 		if err != nil {
 			return nil, false, err
 		}
 		c.ctx = ctx
 
-		return output, true, nil
+		return output, !completed, nil
 	default:
 		completed, output, err := c.ctx.Update(token)
 		if err != nil {
@@ -75,9 +75,9 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 	}
 }
 
-func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
+func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 
-	token, err := c.ctx.MakeSignature(micFiled, 0, 0)
+	token, err := c.ctx.MakeSignature(micField, 0, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/jcmturner/gokrb5/v8/client"
 	"github.com/jcmturner/gokrb5/v8/config"
 	"github.com/jcmturner/gokrb5/v8/credentials"
@@ -34,8 +35,7 @@ func loadCache() (*credentials.CCache, error) {
 
 	path := "/tmp/krb5cc_" + u.Uid
 
-	env := os.Getenv("KRB5CCNAME")
-	if strings.HasPrefix(env, "FILE:") {
+	if env, ok := os.LookupEnv("KRB5CCNAME"); ok && strings.HasPrefix(env, "FILE:") {
 		path = strings.SplitN(env, ":", 2)[1]
 	}
 
@@ -47,30 +47,38 @@ func loadCache() (*credentials.CCache, error) {
 	return cache, nil
 }
 
-func loadConfig() (*config.Config, error) {
-
-	path := os.Getenv("KRB5_CONFIG")
-	_, err := os.Stat(path)
-	if err != nil {
-
-		// List of candidates to try
-		try := []string{"/etc/krb5.conf"}
-
-		for _, t := range try {
-			_, err := os.Stat(t)
-			if err == nil {
-				path = t
-				break
-			}
+func findFile(env string, try []string) (string, error) {
+	path, ok := os.LookupEnv(env)
+	if ok {
+		if _, err := os.Stat(path); err != nil {
+			return "", err
 		}
+		return path, nil
 	}
 
-	cfg, err := config.Load(path)
+	var errs error
+	for _, t := range try {
+		_, err := os.Stat(t)
+		if err != nil {
+			multierror.Append(errs, err)
+			if os.IsNotExist(err) {
+				continue
+			}
+			return "", errs
+		}
+		return t, nil
+	}
+
+	return "", errs
+}
+
+func loadConfig() (*config.Config, error) {
+
+	path, err := findFile("KRB5_CONFIG", []string{"/etc/krb5.conf"})
 	if err != nil {
 		return nil, err
 	}
-
-	return cfg, nil
+	return config.Load(path)
 }
 
 func NewClient() (*Client, error) {
@@ -208,9 +216,9 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 	}
 }
 
-func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
+func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 
-	token, err := gssapi.NewInitiatorMICToken(micFiled, c.key)
+	token, err := gssapi.NewInitiatorMICToken(micField, c.key)
 	if err != nil {
 		return nil, err
 	}

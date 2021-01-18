@@ -59,7 +59,7 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 
 		fallthrough
 	case nil:
-		ctx, _, output, _, _, err := c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_C_NO_OID, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
+		ctx, _, output, _, _, err := c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_MECH_KRB5, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
 		defer output.Release()
 		if err != nil && !c.lib.LastStatus.Major.ContinueNeeded() {
 			return nil, false, err
@@ -69,8 +69,8 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 	}
 }
 
-func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
-	message, err := c.lib.MakeBufferBytes(micFiled)
+func (c *Client) GetMIC(micField []byte) ([]byte, error) {
+	message, err := c.lib.MakeBufferBytes(micField)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +87,6 @@ func (c *Client) GetMIC(micFiled []byte) ([]byte, error) {
 
 func (c *Client) DeleteSecContext() (err error) {
 	err = c.ctx.DeleteSecContext()
-	c.ctx = nil
+	c.ctx = c.lib.GSS_C_NO_CONTEXT
 	return
 }

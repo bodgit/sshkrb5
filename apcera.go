@@ -7,29 +7,38 @@ import (
 	"github.com/openshift/gssapi"
 )
 
+// Client implements the ssh.GSSAPIClient interface.
 type Client struct {
 	lib *gssapi.Lib
 	ctx *gssapi.CtxId
 }
 
+// NewClient returns a new Client using the current user
 func NewClient() (c *Client, err error) {
 	c = new(Client)
 	c.lib, err = gssapi.Load(nil)
 	return
 }
 
+// NewClientWithCredentials returns a new Client using the provided
+// credentials.
 func NewClientWithCredentials(_, _, _ string) (*Client, error) {
 	return nil, errNotSupported
 }
 
+// NewClientWithKeytab returns a new Client using the provided keytab.
 func NewClientWithKeytab(_, _, _ string) (*Client, error) {
 	return nil, errNotSupported
 }
 
+// Close deletes any active security context and unloads any underlying
+// libraries as necessary.
 func (c *Client) Close() error {
 	return multierror.Append(c.DeleteSecContext(), c.lib.Unload())
 }
 
+// InitSecContext is called by the ssh.Client to initialis or advance the
+// security context.
 func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
 	buffer, err := c.lib.MakeBufferString(target)
 	if err != nil {
@@ -69,6 +78,8 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 	}
 }
 
+// GetMIC is called by the ssh.Client to authenticate the user using the
+// negotiated security context.
 func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 	message, err := c.lib.MakeBufferBytes(micField)
 	if err != nil {
@@ -85,6 +96,8 @@ func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 	return token.Bytes(), nil
 }
 
+// DeleteSecContext is called by the ssh.Client to tear down any active
+// security context.
 func (c *Client) DeleteSecContext() (err error) {
 	err = c.ctx.DeleteSecContext()
 	c.ctx = c.lib.GSS_C_NO_CONTEXT

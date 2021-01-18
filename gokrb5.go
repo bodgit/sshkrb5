@@ -21,6 +21,7 @@ import (
 	"github.com/jcmturner/gokrb5/v8/types"
 )
 
+// Client implements the ssh.GSSAPIClient interface.
 type Client struct {
 	client *client.Client
 	key    types.EncryptionKey
@@ -81,6 +82,7 @@ func loadConfig() (*config.Config, error) {
 	return config.Load(path)
 }
 
+// NewClient returns a new Client using the current user.
 func NewClient() (*Client, error) {
 
 	c := new(Client)
@@ -102,6 +104,8 @@ func NewClient() (*Client, error) {
 	return c, nil
 }
 
+// NewClientWithCredentials returns a new Client using the provided
+// credentials.
 func NewClientWithCredentials(domain, username, password string) (*Client, error) {
 
 	c := new(Client)
@@ -120,6 +124,7 @@ func NewClientWithCredentials(domain, username, password string) (*Client, error
 	return c, nil
 }
 
+// NewClientWithKeytab returns a new Client using the provided keytab.
 func NewClientWithKeytab(domain, username, path string) (*Client, error) {
 
 	c := new(Client)
@@ -143,12 +148,16 @@ func NewClientWithKeytab(domain, username, path string) (*Client, error) {
 	return c, nil
 }
 
+// Close deletes any active security context and unloads any underlying
+// libraries as necessary.
 func (c *Client) Close() error {
 	err := c.DeleteSecContext()
 	c.client.Destroy()
 	return err
 }
 
+// InitSecContext is called by the ssh.Client to initialise or advance the
+// security context.
 func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
 	gssapiFlags := []int{
 		gssapi.ContextFlagMutual,
@@ -216,6 +225,8 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 	}
 }
 
+// GetMIC is called by the ssh.Client to authenticate the user using the
+// negotiated security context.
 func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 
 	token, err := gssapi.NewInitiatorMICToken(micField, c.key)
@@ -231,6 +242,8 @@ func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 	return b, nil
 }
 
+// DeleteSecContext is called by the ssh.Client to tear down any active
+// security context.
 func (c *Client) DeleteSecContext() error {
 	return nil
 }

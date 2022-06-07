@@ -7,6 +7,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jcmturner/gokrb5/v8 v8.4.2
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.7.2
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 )

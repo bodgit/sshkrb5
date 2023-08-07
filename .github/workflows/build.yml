@@ -29,6 +29,7 @@ jobs:
       SSH_PASSWORD: password
       SSH_KEYTAB: ${{ github.workspace }}/testdata/test.keytab
       KRB5_CONFIG: ${{ github.workspace }}/testdata/krb5.conf
+      KRB5_KTNAME: ${{ github.workspace }}/testdata/ssh.keytab
 
     steps:
       - name: Checkout

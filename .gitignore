@@ -1,2 +1,6 @@
 *.out
 *.keytab
+/testdata/.terraform*
+/testdata/*.tfstate*
+/testdata/id_rsa*
+/testdata/*.tfvars

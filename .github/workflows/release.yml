@@ -1,0 +1,20 @@
+name: Track releases
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Run release-please
+        uses: google-github-actions/release-please-action@v3
+        with:
+          command: manifest

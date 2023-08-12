@@ -41,6 +41,7 @@ jobs:
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
+        if: github.event_name == 'pull_request'
         with:
           only-new-issues: true
 

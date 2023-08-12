@@ -39,6 +39,11 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          only-new-issues: true
+
       - name: Install Kerberos client
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libkrb5-dev krb5-user

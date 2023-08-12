@@ -31,8 +31,8 @@ jobs:
           sudo docker buildx build --target kdc --tag kdc testdata/
           sudo docker buildx build --target ssh --tag ssh testdata/
           sudo docker buildx build --target keytab --output type=local,dest=testdata/ testdata/
-          sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /etc/localtime:/etc/localtime:ro -p 127.0.0.1:88:88 -p 127.0.0.1:88:88/udp -p 127.0.0.1:464:464 -p 127.0.0.1:464:464/udp --rm --name kdc kdc
-          sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /etc/localtime:/etc/localtime:ro -p 127.0.0.1:${SSH_PORT:-22}:22 --rm --name ssh --hostname $SSH_HOST ssh
+          sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /etc/localtime:/etc/localtime:ro -p 127.0.0.1:8088:8088 -p 127.0.0.1:8088:8088/udp -p 127.0.0.1:8464:8464 -p 127.0.0.1:8464:8464/udp --rm --name kdc kdc
+          sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /etc/localtime:/etc/localtime:ro -p 127.0.0.1:${SSH_PORT}:${SSH_PORT} --rm --name ssh --hostname $SSH_HOST ssh
           echo 127.0.0.1 $SSH_HOST | sudo tee -a /etc/hosts
           sudo chmod 644 $SSH_KEYTAB
           echo $SSH_PASSWORD | kinit $SSH_USERNAME@$SSH_REALM

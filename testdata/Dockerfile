@@ -1,7 +1,7 @@
 FROM centos/systemd:latest as kdc
 
-EXPOSE 88
-EXPOSE 464
+EXPOSE 8088
+EXPOSE 8464
 
 STOPSIGNAL SIGRTMIN+3
 
@@ -25,7 +25,7 @@ RUN kadmin.local ktadd -k /etc/ssh.keytab host/ssh.example.com
 
 FROM centos/systemd:latest as ssh
 
-EXPOSE 22
+EXPOSE 8022
 
 STOPSIGNAL SIGRTMIN+3
 

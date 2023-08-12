@@ -22,6 +22,10 @@ func testEnvironmentVariables(t *testing.T) (string, string, string, string, str
 			"SSH_HOST",
 		},
 		{
+			&port,
+			"SSH_PORT",
+		},
+		{
 			&realm,
 			"SSH_REALM",
 		},
@@ -41,10 +45,6 @@ func testEnvironmentVariables(t *testing.T) (string, string, string, string, str
 		if *env.ptr, ok = os.LookupEnv(env.name); !ok {
 			t.Fatalf("$%s not set", env.name)
 		}
-	}
-
-	if port, ok = os.LookupEnv("SSH_PORT"); !ok {
-		port = "22"
 	}
 
 	return host, port, realm, username, password, keytab

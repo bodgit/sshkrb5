@@ -1,10 +1,10 @@
 [![GitHub release](https://img.shields.io/github/v/release/bodgit/sshkrb5)](https://github.com/bodgit/sshkrb5/releases)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/bodgit/sshkrb5/main.yml?branch=main)](https://github.com/bodgit/sshkrb5/actions?query=workflow%3Abuild)
-[![Coverage Status](https://coveralls.io/repos/github/bodgit/sshkrb5/badge.svg?branch=master)](https://coveralls.io/github/bodgit/sshkrb5?branch=master)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/bodgit/sshkrb5/build.yml?branch=main)](https://github.com/bodgit/sshkrb5/actions?query=workflow%3ABuild)
+[![Coverage Status](https://coveralls.io/repos/github/bodgit/sshkrb5/badge.svg?branch=main)](https://coveralls.io/github/bodgit/sshkrb5?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bodgit/sshkrb5)](https://goreportcard.com/report/github.com/bodgit/sshkrb5)
 [![GoDoc](https://godoc.org/github.com/bodgit/sshkrb5?status.svg)](https://godoc.org/github.com/bodgit/sshkrb5)
-![Go version](https://img.shields.io/badge/Go-1.18-brightgreen.svg)
-![Go version](https://img.shields.io/badge/Go-1.17-brightgreen.svg)
+![Go version](https://img.shields.io/badge/Go-1.20-brightgreen.svg)
+![Go version](https://img.shields.io/badge/Go-1.19-brightgreen.svg)
 
 # GSSAPI middleware for crypto/ssh
 

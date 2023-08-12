@@ -1,9 +1,7 @@
-FROM centos/systemd:latest as kdc
+FROM rockylinux/rockylinux:9-ubi-init as kdc
 
 EXPOSE 8088
 EXPOSE 8464
-
-STOPSIGNAL SIGRTMIN+3
 
 RUN yum install -y krb5-workstation && yum update -y && yum clean all
 COPY --chown=root:root krb5.conf /etc/krb5.conf
@@ -23,11 +21,9 @@ RUN kadmin.local ktadd -norandkey -k /etc/test.keytab test
 RUN kadmin.local addprinc -randkey host/ssh.example.com
 RUN kadmin.local ktadd -k /etc/ssh.keytab host/ssh.example.com
 
-FROM centos/systemd:latest as ssh
+FROM rockylinux/rockylinux:9-ubi-init as ssh
 
 EXPOSE 8022
-
-STOPSIGNAL SIGRTMIN+3
 
 RUN yum install -y krb5-workstation && yum update -y && yum clean all
 COPY --chown=root:root krb5.conf /etc/krb5.conf

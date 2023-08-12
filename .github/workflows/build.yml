@@ -1,57 +1,123 @@
----
 name: Build
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: 0 0 * * 1
+
 jobs:
   test:
     name: Build and Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         go:
           - '1.17'
           - '1.18'
+
     env:
       SSH_HOST: ssh.example.com
       SSH_PORT: 8022
       SSH_REALM: EXAMPLE.COM
       SSH_USERNAME: test
       SSH_PASSWORD: password
-      SSH_KEYTAB: /home/runner/work/sshkrb5/sshkrb5/testdata/test.keytab
-      KRB5_CONFIG: /home/runner/work/sshkrb5/sshkrb5/testdata/krb5.conf
+      SSH_KEYTAB: ${{ github.workspace }}/testdata/test.keytab
+      KRB5_CONFIG: ${{ github.workspace }}/testdata/krb5.conf
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
-      - name: Create infrastructure
+
+      - name: Install Kerberos client
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libkrb5-dev krb5-user
-          sudo docker buildx build --target kdc --tag kdc testdata/
-          sudo docker buildx build --target ssh --tag ssh testdata/
-          sudo docker buildx build --target keytab --output type=local,dest=testdata/ testdata/
-          sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /etc/localtime:/etc/localtime:ro -p 127.0.0.1:8088:8088 -p 127.0.0.1:8088:8088/udp -p 127.0.0.1:8464:8464 -p 127.0.0.1:8464:8464/udp --rm --name kdc kdc
-          sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /etc/localtime:/etc/localtime:ro -p 127.0.0.1:${SSH_PORT}:${SSH_PORT} --rm --name ssh --hostname $SSH_HOST ssh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build KDC image
+        uses: docker/build-push-action@v4
+        with:
+          context: "{{defaultContext}}:testdata"
+          load: true
+          tags: kdc
+          target: kdc
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build SSH image
+        uses: docker/build-push-action@v4
+        with:
+          context: "{{defaultContext}}:testdata"
+          load: true
+          tags: ssh
+          target: ssh
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract keytab
+        uses: docker/build-push-action@v4
+        with:
+          context: "{{defaultContext}}:testdata"
+          outputs: type=local,dest=testdata
+          target: keytab
+
+      - name: Pull containers into Podman
+        run: |
+          podman pull docker-daemon:kdc:latest
+          podman pull docker-daemon:ssh:latest
+
+      - name: Create infrastructure
+        run: |
+          podman run -d \
+            -v /etc/localtime:/etc/localtime:ro \
+            -p 127.0.0.1:8088:8088 \
+            -p 127.0.0.1:8088:8088/udp \
+            -p 127.0.0.1:8464:8464 \
+            -p 127.0.0.1:8464:8464/udp \
+            --name kdc kdc
+          podman run -d \
+            -v /etc/localtime:/etc/localtime:ro \
+            -p 127.0.0.1:${SSH_PORT}:${SSH_PORT} \
+            --name ssh --hostname $SSH_HOST ssh
+          # SSH container might still be running ssh-keygen before sshd is running
+          timeout 10 sh -c 'until nc -z $0 $1; do sleep 1; done' 127.0.0.1 $SSH_PORT
           echo 127.0.0.1 $SSH_HOST | sudo tee -a /etc/hosts
-          sudo chmod 644 $SSH_KEYTAB
-          echo $SSH_PASSWORD | kinit $SSH_USERNAME@$SSH_REALM
+          echo $SSH_PASSWORD | KRB5_TRACE=/dev/stdout kinit ${SSH_USERNAME}@${SSH_REALM}
+
       - name: Test (gokrb5)
         run: go test -v -coverprofile=gokrb5.out ./...
+
       - name: Test (apcera)
         run: go test -v -coverprofile=apcera.out -tags apcera ./...
+
       - name: Build (SSPI)
         run: go build ./...
         env:
+          GOARCH: amd64
           GOOS: windows
+
       - name: Install coverage tools
         run: |
           go get github.com/wadey/gocovmerge
           go get github.com/mattn/goveralls
         env:
           GO111MODULE: off
+
       - name: Merge coverage reports
         run: gocovmerge gokrb5.out apcera.out >cover.out
+
       - name: Send coverage
         run: goveralls -coverprofile=cover.out -service=github
         env:

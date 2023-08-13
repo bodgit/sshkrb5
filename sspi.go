@@ -54,7 +54,7 @@ func NewClientWithKeytab(_, _, _ string) (*Client, error) {
 // Close deletes any active security context and unloads any underlying
 // libraries as necessary.
 func (c *Client) Close() error {
-	return multierror.Append(c.DeleteSecContext(), c.creds.Release())
+	return multierror.Append(c.DeleteSecContext(), c.creds.Release()).ErrorOrNil()
 }
 
 // InitSecContext is called by the ssh.Client to initialise or advance the

@@ -5,6 +5,7 @@ package sshkrb5
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/user"
 	"strings"
@@ -36,7 +37,8 @@ func loadCache() (*credentials.CCache, error) {
 
 	path := "/tmp/krb5cc_" + u.Uid
 
-	if env, ok := os.LookupEnv("KRB5CCNAME"); ok && strings.HasPrefix(env, "FILE:") {
+	env := os.Getenv("KRB5CCNAME")
+	if strings.HasPrefix(env, "FILE:") {
 		path = strings.SplitN(env, ":", 2)[1]
 	}
 
@@ -52,17 +54,17 @@ func findFile(env string, try []string) (string, error) {
 	path, ok := os.LookupEnv(env)
 	if ok {
 		if _, err := os.Stat(path); err != nil {
-			return "", err
+			return "", fmt.Errorf("%s: %w", env, err)
 		}
 
 		return path, nil
 	}
 
-	var errs error
+	errs := fmt.Errorf("%s: not found", env)
 
 	for _, t := range try {
 		if _, err := os.Stat(t); err != nil {
-			multierror.Append(errs, err)
+			errs = multierror.Append(errs, err)
 
 			if os.IsNotExist(err) {
 				continue

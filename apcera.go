@@ -14,10 +14,11 @@ type Client struct {
 	ctx *gssapi.CtxId
 }
 
-// NewClient returns a new Client using the current user
+// NewClient returns a new Client using the current user.
 func NewClient() (c *Client, err error) {
 	c = new(Client)
 	c.lib, err = gssapi.Load(nil)
+
 	return
 }
 
@@ -35,66 +36,103 @@ func NewClientWithKeytab(_, _, _ string) (*Client, error) {
 // Close deletes any active security context and unloads any underlying
 // libraries as necessary.
 func (c *Client) Close() error {
-	return multierror.Append(c.DeleteSecContext(), c.lib.Unload())
+	return multierror.Append(c.DeleteSecContext(), c.lib.Unload()).ErrorOrNil()
 }
 
 // InitSecContext is called by the ssh.Client to initialis or advance the
 // security context.
-func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
-	buffer, err := c.lib.MakeBufferString(target)
-	if err != nil {
-		return nil, false, err
-	}
-	defer buffer.Release()
+//
+//nolint:funlen,nakedret
+func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) (b []byte, cont bool, err error) {
+	var (
+		buffer, input *gssapi.Buffer
+		service       *gssapi.Name
+	)
 
-	service, err := buffer.Name(c.lib.GSS_C_NT_HOSTBASED_SERVICE)
+	buffer, err = c.lib.MakeBufferString(target)
 	if err != nil {
-		return nil, false, err
+		return
 	}
-	defer service.Release()
+
+	defer func() {
+		err = multierror.Append(err, buffer.Release()).ErrorOrNil()
+	}()
+
+	service, err = buffer.Name(c.lib.GSS_C_NT_HOSTBASED_SERVICE)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		err = multierror.Append(err, service.Release()).ErrorOrNil()
+	}()
 
 	gssapiFlags := uint32(gssapi.GSS_C_MUTUAL_FLAG | gssapi.GSS_C_INTEG_FLAG)
 	if isGSSDelegCreds {
 		gssapiFlags |= gssapi.GSS_C_DELEG_FLAG
 	}
 
-	var input *gssapi.Buffer
 	switch token {
 	default:
 		input, err = c.lib.MakeBufferBytes(token)
 		if err != nil {
-			return nil, false, err
+			return
 		}
-		defer input.Release()
+
+		defer func() {
+			err = multierror.Append(err, input.Release()).ErrorOrNil()
+		}()
 
 		fallthrough
 	case nil:
-		ctx, _, output, _, _, err := c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_MECH_KRB5, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
-		defer output.Release()
+		var (
+			ctx    *gssapi.CtxId
+			output *gssapi.Buffer
+		)
+
+		//nolint:lll
+		ctx, _, output, _, _, err = c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_MECH_KRB5, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
+
+		defer func() {
+			err = multierror.Append(err, output.Release()).ErrorOrNil()
+		}()
+
 		if err != nil && !c.lib.LastStatus.Major.ContinueNeeded() {
-			return nil, false, err
+			return
 		}
-		c.ctx = ctx
-		return output.Bytes(), c.lib.LastStatus.Major.ContinueNeeded(), nil
+
+		c.ctx, b, cont, err = ctx, output.Bytes(), c.lib.LastStatus.Major.ContinueNeeded(), nil
+
+		return
 	}
 }
 
 // GetMIC is called by the ssh.Client to authenticate the user using the
 // negotiated security context.
-func (c *Client) GetMIC(micField []byte) ([]byte, error) {
-	message, err := c.lib.MakeBufferBytes(micField)
-	if err != nil {
-		return nil, err
-	}
-	defer message.Release()
+func (c *Client) GetMIC(micField []byte) (b []byte, err error) {
+	var message, token *gssapi.Buffer
 
-	token, err := c.ctx.GetMIC(gssapi.GSS_C_QOP_DEFAULT, message)
+	message, err = c.lib.MakeBufferBytes(micField)
 	if err != nil {
-		return nil, err
+		return
 	}
-	defer token.Release()
 
-	return token.Bytes(), nil
+	defer func() {
+		err = multierror.Append(err, message.Release()).ErrorOrNil()
+	}()
+
+	token, err = c.ctx.GetMIC(gssapi.GSS_C_QOP_DEFAULT, message)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		err = multierror.Append(err, token.Release()).ErrorOrNil()
+	}()
+
+	b = token.Bytes()
+
+	return
 }
 
 // DeleteSecContext is called by the ssh.Client to tear down any active
@@ -102,5 +140,6 @@ func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 func (c *Client) DeleteSecContext() (err error) {
 	err = c.ctx.DeleteSecContext()
 	c.ctx = c.lib.GSS_C_NO_CONTEXT
+
 	return
 }

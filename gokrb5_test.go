@@ -11,21 +11,33 @@ import (
 
 func TestNewClient(t *testing.T) {
 	t.Parallel()
+
 	whoami, err := testNewClient(t)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assert.Equal(t, "test", whoami)
 }
 
 func TestNewClientWithCredentials(t *testing.T) {
 	t.Parallel()
+
 	whoami, err := testNewClientWithCredentials(t)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assert.Equal(t, "test", whoami)
 }
 
 func TestNewClientWithKeytab(t *testing.T) {
 	t.Parallel()
+
 	whoami, err := testNewClientWithKeytab(t)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assert.Equal(t, "test", whoami)
 }

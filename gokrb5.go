@@ -29,7 +29,6 @@ type Client struct {
 }
 
 func loadCache() (*credentials.CCache, error) {
-
 	u, err := user.Current()
 	if err != nil {
 		return nil, err
@@ -55,19 +54,23 @@ func findFile(env string, try []string) (string, error) {
 		if _, err := os.Stat(path); err != nil {
 			return "", err
 		}
+
 		return path, nil
 	}
 
 	var errs error
+
 	for _, t := range try {
-		_, err := os.Stat(t)
-		if err != nil {
+		if _, err := os.Stat(t); err != nil {
 			multierror.Append(errs, err)
+
 			if os.IsNotExist(err) {
 				continue
 			}
+
 			return "", errs
 		}
+
 		return t, nil
 	}
 
@@ -75,17 +78,16 @@ func findFile(env string, try []string) (string, error) {
 }
 
 func loadConfig() (*config.Config, error) {
-
 	path, err := findFile("KRB5_CONFIG", []string{"/etc/krb5.conf"})
 	if err != nil {
 		return nil, err
 	}
+
 	return config.Load(path)
 }
 
 // NewClient returns a new Client using the current user.
 func NewClient() (*Client, error) {
-
 	c := new(Client)
 
 	cache, err := loadCache()
@@ -108,7 +110,6 @@ func NewClient() (*Client, error) {
 // NewClientWithCredentials returns a new Client using the provided
 // credentials.
 func NewClientWithCredentials(domain, username, password string) (*Client, error) {
-
 	c := new(Client)
 
 	cfg, err := loadConfig()
@@ -127,7 +128,6 @@ func NewClientWithCredentials(domain, username, password string) (*Client, error
 
 // NewClientWithKeytab returns a new Client using the provided keytab.
 func NewClientWithKeytab(domain, username, path string) (*Client, error) {
-
 	c := new(Client)
 
 	kt, err := keytab.Load(path)
@@ -154,11 +154,14 @@ func NewClientWithKeytab(domain, username, path string) (*Client, error) {
 func (c *Client) Close() error {
 	err := c.DeleteSecContext()
 	c.client.Destroy()
+
 	return err
 }
 
 // InitSecContext is called by the ssh.Client to initialise or advance the
 // security context.
+//
+//nolint:cyclop,funlen
 func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
 	gssapiFlags := []int{
 		gssapi.ContextFlagMutual,
@@ -229,7 +232,6 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 // GetMIC is called by the ssh.Client to authenticate the user using the
 // negotiated security context.
 func (c *Client) GetMIC(micField []byte) ([]byte, error) {
-
 	token, err := gssapi.NewInitiatorMICToken(micField, c.key)
 	if err != nil {
 		return nil, err

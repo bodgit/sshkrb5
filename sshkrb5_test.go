@@ -1,4 +1,4 @@
-package sshkrb5
+package sshkrb5_test
 
 import (
 	"net"
@@ -6,12 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bodgit/sshkrb5"
 	"golang.org/x/crypto/ssh"
 )
 
 func testEnvironmentVariables(t *testing.T) (string, string, string, string, string, string) {
-	var host, port, realm, username, password, keytab string
-	var ok bool
+	t.Helper()
+
+	var (
+		host, port, realm, username, password, keytab string
+		ok                                            bool
+	)
 
 	for _, env := range []struct {
 		ptr  *string
@@ -43,7 +48,7 @@ func testEnvironmentVariables(t *testing.T) (string, string, string, string, str
 		},
 	} {
 		if *env.ptr, ok = os.LookupEnv(env.name); !ok {
-			t.Fatalf("$%s not set", env.name)
+			t.Fatalf("%s not set", env.name)
 		}
 	}
 
@@ -51,13 +56,16 @@ func testEnvironmentVariables(t *testing.T) (string, string, string, string, str
 }
 
 func testNewClient(t *testing.T) (string, error) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
+	//nolint:dogsled
 	hostname, port, _, username, _, _ := testEnvironmentVariables(t)
 
-	client, err := NewClient()
+	client, err := sshkrb5.NewClient()
 	if err != nil {
 		return "", err
 	}
@@ -67,13 +75,15 @@ func testNewClient(t *testing.T) (string, error) {
 }
 
 func testNewClientWithCredentials(t *testing.T) (string, error) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	hostname, port, realm, username, password, _ := testEnvironmentVariables(t)
 
-	client, err := NewClientWithCredentials(realm, username, password)
+	client, err := sshkrb5.NewClientWithCredentials(realm, username, password)
 	if err != nil {
 		return "", err
 	}
@@ -83,13 +93,15 @@ func testNewClientWithCredentials(t *testing.T) (string, error) {
 }
 
 func testNewClientWithKeytab(t *testing.T) (string, error) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	hostname, port, realm, username, _, keytab := testEnvironmentVariables(t)
 
-	client, err := NewClientWithKeytab(realm, username, keytab)
+	client, err := sshkrb5.NewClientWithKeytab(realm, username, keytab)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +116,7 @@ func testConnection(gssapi ssh.GSSAPIClient, hostname, port, username string) (s
 		Auth: []ssh.AuthMethod{
 			ssh.GSSAPIWithMICAuthMethod(gssapi, hostname),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec
 	}
 
 	client, err := ssh.Dial("tcp", net.JoinHostPort(hostname, port), config)

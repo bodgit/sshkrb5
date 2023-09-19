@@ -4,7 +4,13 @@ golang.org/x/crypto/ssh package.
 */
 package sshkrb5
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 //nolint:nolintlint,unused
-var errNotSupported = errors.New("not supported")
+var (
+	errNotSupported = errors.New("not supported")
+	osHostname      = os.Hostname //nolint:gochecknoglobals
+)

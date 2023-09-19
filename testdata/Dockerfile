@@ -43,3 +43,4 @@ RUN useradd test
 
 FROM scratch as keytab
 COPY --from=kdc /etc/test.keytab /test.keytab
+COPY --from=kdc /etc/ssh.keytab /ssh.keytab

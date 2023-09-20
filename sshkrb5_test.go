@@ -234,7 +234,7 @@ func newServer(hostname string, logger logr.Logger) (string, func() error, error
 	}
 
 	options := []sshkrb5.Option[sshkrb5.Server]{
-		sshkrb5.WithLogger(logger),
+		sshkrb5.WithLogger[sshkrb5.Server](logger),
 	}
 
 	if runtime.GOOS != "windows" {
@@ -349,7 +349,7 @@ func testNewServer(t *testing.T) (err error) {
 		err = multierror.Append(err, teardown()).ErrorOrNil()
 	}()
 
-	client, err = sshkrb5.NewClient()
+	client, err = sshkrb5.NewClient(sshkrb5.WithLogger[sshkrb5.Client](testr.New(t)))
 	if err != nil {
 		return
 	}

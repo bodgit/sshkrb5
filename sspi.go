@@ -12,44 +12,90 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 )
 
+// WithConfig sets the configuration in the Client.
+func WithConfig[T Client](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
+// WithDomain sets the Kerberos domain in the Client.
+func WithDomain[T Client](domain string) Option[T] {
+	return func(a *T) error {
+		if x, ok := any(a).(*Client); ok {
+			x.domain = domain
+		}
+
+		return nil
+	}
+}
+
+// WithUsername sets the username in the Client.
+func WithUsername[T Client](username string) Option[T] {
+	return func(a *T) error {
+		if x, ok := any(a).(*Client); ok {
+			x.username = username
+		}
+
+		return nil
+	}
+}
+
+// WithPassword sets the password in the Client.
+func WithPassword[T Client](password string) Option[T] {
+	return func(a *T) error {
+		if x, ok := any(a).(*Client); ok {
+			x.password = password
+		}
+
+		return nil
+	}
+}
+
+// WithKeytab sets the keytab path in either a Client or Server.
+func WithKeytab[T Client | Server](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
 // Client implements the ssh.GSSAPIClient interface.
 type Client struct {
+	domain   string
+	username string
+	password string
+
 	creds *sspi.Credentials
 	ctx   *kerberos.ClientContext
+
+	logger logr.Logger
+}
+
+func (c *Client) usePassword() bool {
+	return c.domain != "" && c.username != "" && c.password != ""
 }
 
 // NewClient returns a new Client using the current user.
-func NewClient() (*Client, error) {
-	c := new(Client)
+func NewClient(options ...Option[Client]) (*Client, error) {
+	c := &Client{
+		logger: logr.Discard(),
+	}
 
-	creds, err := kerberos.AcquireCurrentUserCredentials()
+	var err error
+
+	for _, option := range options {
+		if err = option(c); err != nil {
+			return nil, err
+		}
+	}
+
+	if c.usePassword() {
+		c.creds, err = kerberos.AcquireUserCredentials(c.domain, c.username, c.password)
+	} else {
+		c.creds, err = kerberos.AcquireCurrentUserCredentials()
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	c.creds = creds
-
 	return c, nil
-}
-
-// NewClientWithCredentials returns a new Client using the provided
-// credentials.
-func NewClientWithCredentials(domain, username, password string) (*Client, error) {
-	c := new(Client)
-
-	creds, err := kerberos.AcquireUserCredentials(domain, username, password)
-	if err != nil {
-		return nil, err
-	}
-
-	c.creds = creds
-
-	return c, nil
-}
-
-// NewClientWithKeytab returns a new Client using the provided keytab.
-func NewClientWithKeytab(_, _, _ string) (*Client, error) {
-	return nil, errNotSupported
 }
 
 // Close deletes any active security context and unloads any underlying
@@ -108,9 +154,10 @@ func (c *Client) DeleteSecContext() (err error) {
 
 // Server implements the ssh.GSSAPIServer interface.
 type Server struct {
+	creds *sspi.Credentials
+	ctx   *kerberos.ServerContext
+
 	logger logr.Logger
-	creds  *sspi.Credentials
-	ctx    *kerberos.ServerContext
 }
 
 // NewServer returns a new Server.

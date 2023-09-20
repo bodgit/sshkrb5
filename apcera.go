@@ -9,29 +9,54 @@ import (
 	"github.com/openshift/gssapi"
 )
 
+// WithConfig sets the configuration in the Client.
+func WithConfig[T Client](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
+// WithDomain sets the Kerberos domain in the Client.
+func WithDomain[T Client](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
+// WithUsername sets the username in the Client.
+func WithUsername[T Client](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
+// WithPassword sets the password in the Client.
+func WithPassword[T Client](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
+// WithKeytab sets the keytab path in either a Client or Server.
+func WithKeytab[T Client | Server](_ string) Option[T] {
+	return unsupportedOption[T]
+}
+
 // Client implements the ssh.GSSAPIClient interface.
 type Client struct {
 	lib *gssapi.Lib
 	ctx *gssapi.CtxId
+
+	logger logr.Logger
 }
 
 // NewClient returns a new Client using the current user.
-func NewClient() (c *Client, err error) {
-	c = new(Client)
+func NewClient(options ...Option[Client]) (c *Client, err error) {
+	c = &Client{
+		logger: logr.Discard(),
+	}
+
+	for _, option := range options {
+		if err = option(c); err != nil {
+			return nil, err
+		}
+	}
+
 	c.lib, err = gssapi.Load(nil)
 
 	return
-}
-
-// NewClientWithCredentials returns a new Client using the provided
-// credentials.
-func NewClientWithCredentials(_, _, _ string) (*Client, error) {
-	return nil, errNotSupported
-}
-
-// NewClientWithKeytab returns a new Client using the provided keytab.
-func NewClientWithKeytab(_, _, _ string) (*Client, error) {
-	return nil, errNotSupported
 }
 
 // Close deletes any active security context and unloads any underlying
@@ -147,9 +172,11 @@ func (c *Client) DeleteSecContext() (err error) {
 // Server implements the ssh.GSSAPIServer interface.
 type Server struct {
 	strict bool
+
+	lib *gssapi.Lib
+	ctx *gssapi.CtxId
+
 	logger logr.Logger
-	lib    *gssapi.Lib
-	ctx    *gssapi.CtxId
 }
 
 // NewServer returns a new Server.

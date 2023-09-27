@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/bodgit/sshkrb5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,6 +42,13 @@ func TestNewClientWithKeytab(t *testing.T) {
 	}
 
 	assert.Regexp(t, regexp.MustCompile(`\btest$`), whoami)
+}
+
+func TestNewClientWithConfig(t *testing.T) {
+	t.Parallel()
+
+	_, err := sshkrb5.NewClient(sshkrb5.WithConfig(""))
+	assert.Nil(t, err)
 }
 
 func TestNewServer(t *testing.T) {

@@ -27,5 +27,5 @@ func NewClientWithCredentials(domain, username, password string) (*Client, error
 //
 // Deprecated: Use NewClient instead.
 func NewClientWithKeytab(domain, username, path string) (*Client, error) {
-	return NewClient(WithDomain(domain), WithUsername(username), WithKeytab[Client](path))
+	return NewClient(WithRealm(domain), WithUsername(username), WithKeytab[Client](path))
 }

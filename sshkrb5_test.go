@@ -115,29 +115,21 @@ func newClient(gssapi ssh.GSSAPIClient, hostname, port, username string) (*ssh.S
 }
 
 func testConnectionWhoami(gssapi ssh.GSSAPIClient, hostname, port, username string) (result string, err error) {
-	var (
-		session  *ssh.Session
-		teardown func() error
-		b        []byte
-	)
-
-	session, teardown, err = newClient(gssapi, hostname, port, username)
+	session, teardown, err := newClient(gssapi, hostname, port, username)
 	if err != nil {
-		return
+		return "", err
 	}
 
 	defer func() {
 		err = multierror.Append(err, teardown()).ErrorOrNil()
 	}()
 
-	b, err = session.Output("whoami")
+	b, err := session.Output("whoami")
 	if err != nil {
-		return
+		return "", err
 	}
 
-	result = strings.TrimSpace(string(b))
-
-	return
+	return strings.TrimSpace(string(b)), nil
 }
 
 func testNewClient(t *testing.T) (result string, err error) {
@@ -150,20 +142,16 @@ func testNewClient(t *testing.T) (result string, err error) {
 	//nolint:dogsled
 	hostname, port, _, username, _, _ := testEnvironmentVariables(t)
 
-	var client *sshkrb5.Client
-
-	client, err = sshkrb5.NewClient()
+	client, err := sshkrb5.NewClient()
 	if err != nil {
-		return
+		return "", err
 	}
 
 	defer func() {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	result, err = testConnectionWhoami(client, hostname, port, username)
-
-	return
+	return testConnectionWhoami(client, hostname, port, username)
 }
 
 func testNewClientWithCredentials(t *testing.T) (result string, err error) {
@@ -175,20 +163,16 @@ func testNewClientWithCredentials(t *testing.T) (result string, err error) {
 
 	hostname, port, realm, username, password, _ := testEnvironmentVariables(t)
 
-	var client *sshkrb5.Client
-
-	client, err = sshkrb5.NewClientWithCredentials(realm, username, password)
+	client, err := sshkrb5.NewClientWithCredentials(realm, username, password)
 	if err != nil {
-		return
+		return "", err
 	}
 
 	defer func() {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	result, err = testConnectionWhoami(client, hostname, port, username)
-
-	return
+	return testConnectionWhoami(client, hostname, port, username)
 }
 
 func testNewClientWithKeytab(t *testing.T) (result string, err error) {
@@ -200,20 +184,16 @@ func testNewClientWithKeytab(t *testing.T) (result string, err error) {
 
 	hostname, port, realm, username, _, keytab := testEnvironmentVariables(t)
 
-	var client *sshkrb5.Client
-
-	client, err = sshkrb5.NewClientWithKeytab(realm, username, keytab)
+	client, err := sshkrb5.NewClientWithKeytab(realm, username, keytab)
 	if err != nil {
-		return
+		return "", err
 	}
 
 	defer func() {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	result, err = testConnectionWhoami(client, hostname, port, username)
-
-	return
+	return testConnectionWhoami(client, hostname, port, username)
 }
 
 //nolint:funlen
@@ -314,7 +294,6 @@ func testConnection(gssapi ssh.GSSAPIClient, hostname, port, username string) er
 	return teardown()
 }
 
-//nolint:nakedret
 func testNewServer(t *testing.T) (err error) {
 	t.Helper()
 
@@ -334,31 +313,23 @@ func testNewServer(t *testing.T) (err error) {
 		sshkrb5.OSHostname = old
 	}()
 
-	var (
-		port     string
-		teardown func() error
-		client   *sshkrb5.Client
-	)
-
-	port, teardown, err = newServer(hostname, testr.New(t))
+	port, teardown, err := newServer(hostname, testr.New(t))
 	if err != nil {
-		return
+		return err
 	}
 
 	defer func() {
 		err = multierror.Append(err, teardown()).ErrorOrNil()
 	}()
 
-	client, err = sshkrb5.NewClient(sshkrb5.WithLogger[sshkrb5.Client](testr.New(t)))
+	client, err := sshkrb5.NewClient(sshkrb5.WithLogger[sshkrb5.Client](testr.New(t)))
 	if err != nil {
-		return
+		return err
 	}
 
 	defer func() {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	err = testConnection(client, hostname, port, username)
-
-	return
+	return testConnection(client, hostname, port, username)
 }

@@ -114,11 +114,15 @@ func NewClient(options ...Option[Client]) (*Client, error) {
 
 	switch {
 	case c.usePassword():
-		//nolint:lll
-		initiatorOptions = append(initiatorOptions, wrapper.WithDomain(c.domain), wrapper.WithUsername(c.username), wrapper.WithPassword(c.password))
+		initiatorOptions = append(initiatorOptions,
+			wrapper.WithDomain(c.domain),
+			wrapper.WithUsername(c.username),
+			wrapper.WithPassword(c.password))
 	case c.useKeytab():
-		//nolint:lll
-		initiatorOptions = append(initiatorOptions, wrapper.WithDomain(c.domain), wrapper.WithUsername(c.username), wrapper.WithKeytab[wrapper.Initiator](*c.keytab))
+		initiatorOptions = append(initiatorOptions,
+			wrapper.WithDomain(c.domain),
+			wrapper.WithUsername(c.username),
+			wrapper.WithKeytab[wrapper.Initiator](*c.keytab))
 	default:
 		c.logger.Info("using default session")
 	}

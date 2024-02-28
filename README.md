@@ -3,8 +3,8 @@
 [![Coverage Status](https://coveralls.io/repos/github/bodgit/sshkrb5/badge.svg?branch=main)](https://coveralls.io/github/bodgit/sshkrb5?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bodgit/sshkrb5)](https://goreportcard.com/report/github.com/bodgit/sshkrb5)
 [![GoDoc](https://godoc.org/github.com/bodgit/sshkrb5?status.svg)](https://godoc.org/github.com/bodgit/sshkrb5)
-![Go version](https://img.shields.io/badge/Go-1.20-brightgreen.svg)
-![Go version](https://img.shields.io/badge/Go-1.19-brightgreen.svg)
+![Go version](https://img.shields.io/badge/Go-1.22-brightgreen.svg)
+![Go version](https://img.shields.io/badge/Go-1.21-brightgreen.svg)
 
 # GSSAPI middleware for crypto/ssh
 

@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:9-ubi-init as kdc
+FROM rockylinux/rockylinux:9-ubi-init AS kdc
 
 EXPOSE 8088
 EXPOSE 8464
@@ -21,7 +21,7 @@ RUN kadmin.local ktadd -norandkey -k /etc/test.keytab test
 RUN kadmin.local addprinc -randkey host/ssh.example.com
 RUN kadmin.local ktadd -k /etc/ssh.keytab host/ssh.example.com
 
-FROM rockylinux/rockylinux:9-ubi-init as ssh
+FROM rockylinux/rockylinux:9-ubi-init AS ssh
 
 EXPOSE 8022
 
@@ -41,6 +41,6 @@ RUN chmod 600 /etc/ssh/sshd_config
 RUN authconfig --enablekrb5 --update
 RUN useradd test
 
-FROM scratch as keytab
+FROM scratch AS keytab
 COPY --from=kdc /etc/test.keytab /test.keytab
 COPY --from=kdc /etc/ssh.keytab /ssh.keytab

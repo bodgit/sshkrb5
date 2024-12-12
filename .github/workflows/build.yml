@@ -18,8 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - '1.21'
           - '1.22'
+          - '1.23'
 
     env:
       SSH_HOST: ssh.example.com

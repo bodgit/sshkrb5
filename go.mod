@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
 	github.com/bodgit/gssapi v0.0.2
-	github.com/go-logr/logr v1.4.2
+	github.com/go-logr/logr v1.4.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jcmturner/gokrb5/v8 v8.4.4
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b

@@ -38,7 +38,7 @@ RUN systemctl enable sshd.service
 COPY --chown=root:root sshd_config /etc/ssh/sshd_config
 RUN chmod 600 /etc/ssh/sshd_config
 
-RUN authselect select minimal --force
+RUN authselect select local --force
 RUN useradd test
 
 RUN chmod 0400 /etc/shadow

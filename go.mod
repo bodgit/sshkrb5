@@ -3,7 +3,7 @@ module github.com/bodgit/sshkrb5
 go 1.25
 
 require (
-	github.com/alexbrainman/sspi v0.0.0-20210105120005-909beea2cc74
+	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e
 	github.com/bodgit/gssapi v0.0.2
 	github.com/go-logr/logr v1.4.2
 	github.com/hashicorp/go-multierror v1.1.1

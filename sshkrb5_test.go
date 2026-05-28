@@ -2,6 +2,7 @@ package sshkrb5_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -75,7 +76,7 @@ func testEnvironmentVariables(t *testing.T) (string, string, string, string, str
 		},
 	} {
 		if *env.ptr, ok = os.LookupEnv(env.name); !ok && !env.optional {
-			errs = multierror.Append(errs, fmt.Errorf("%s is not set", env.name))
+			errs = multierror.Append(errs, fmt.Errorf("%s is not set", env.name)) //nolint:err113
 		}
 	}
 
@@ -105,16 +106,17 @@ func newClient(gssapi ssh.GSSAPIClient, hostname, port, username string) (*ssh.S
 		return nil, nil, multierror.Append(err, client.Close())
 	}
 
-	return session, func() (err error) {
-		if nerr := session.Close(); nerr != nil && !errors.Is(nerr, io.EOF) {
-			err = nerr
+	return session, func() error {
+		err := session.Close()
+		if err != nil && errors.Is(err, io.EOF) {
+			err = nil
 		}
 
 		return multierror.Append(err, client.Close()).ErrorOrNil()
 	}, nil
 }
 
-func testConnectionWhoami(gssapi ssh.GSSAPIClient, hostname, port, username string) (result string, err error) {
+func testConnectionWhoami(gssapi ssh.GSSAPIClient, hostname, port, username string) (string, error) {
 	session, teardown, err := newClient(gssapi, hostname, port, username)
 	if err != nil {
 		return "", err
@@ -129,10 +131,10 @@ func testConnectionWhoami(gssapi ssh.GSSAPIClient, hostname, port, username stri
 		return "", err
 	}
 
-	return strings.TrimSpace(string(b)), nil
+	return strings.TrimSpace(string(b)), err
 }
 
-func testNewClient(t *testing.T) (result string, err error) {
+func testNewClient(t *testing.T) (string, error) {
 	t.Helper()
 
 	if testing.Short() {
@@ -151,10 +153,12 @@ func testNewClient(t *testing.T) (result string, err error) {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	return testConnectionWhoami(client, hostname, port, username)
+	result, err := testConnectionWhoami(client, hostname, port, username)
+
+	return result, err
 }
 
-func testNewClientWithCredentials(t *testing.T) (result string, err error) {
+func testNewClientWithCredentials(t *testing.T) (string, error) {
 	t.Helper()
 
 	if testing.Short() {
@@ -172,10 +176,12 @@ func testNewClientWithCredentials(t *testing.T) (result string, err error) {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	return testConnectionWhoami(client, hostname, port, username)
+	result, err := testConnectionWhoami(client, hostname, port, username)
+
+	return result, err
 }
 
-func testNewClientWithKeytab(t *testing.T) (result string, err error) {
+func testNewClientWithKeytab(t *testing.T) (string, error) {
 	t.Helper()
 
 	if testing.Short() {
@@ -193,11 +199,13 @@ func testNewClientWithKeytab(t *testing.T) (result string, err error) {
 		err = multierror.Append(err, client.Close()).ErrorOrNil()
 	}()
 
-	return testConnectionWhoami(client, hostname, port, username)
+	result, err := testConnectionWhoami(client, hostname, port, username)
+
+	return result, err
 }
 
 //nolint:funlen
-func newServer(hostname string, logger logr.Logger) (string, func() error, error) {
+func newServer(ctx context.Context, hostname string, logger logr.Logger) (string, func() error, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return "", nil, err
@@ -228,7 +236,7 @@ func newServer(hostname string, logger logr.Logger) (string, func() error, error
 
 	config := &ssh.ServerConfig{
 		GSSAPIWithMICConfig: &ssh.GSSAPIWithMICConfig{
-			AllowLogin: func(c ssh.ConnMetadata, name string) (*ssh.Permissions, error) {
+			AllowLogin: func(_ ssh.ConnMetadata, _ string) (*ssh.Permissions, error) {
 				return nil, nil //nolint:nilnil
 			},
 			Server: gssapi,
@@ -237,7 +245,7 @@ func newServer(hostname string, logger logr.Logger) (string, func() error, error
 
 	config.AddHostKey(private)
 
-	listener, err := net.Listen("tcp4", net.JoinHostPort(hostname, "0"))
+	listener, err := new(net.ListenConfig).Listen(ctx, "tcp4", net.JoinHostPort(hostname, "0"))
 	if err != nil {
 		return "", nil, multierror.Append(err, gssapi.Close())
 	}
@@ -272,7 +280,7 @@ func handleChannels(chans <-chan ssh.NewChannel) {
 
 func handleChannel(newChannel ssh.NewChannel) {
 	if t := newChannel.ChannelType(); t != "session" {
-		_ = newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", t))
+		_ = newChannel.Reject(ssh.UnknownChannelType, "unknown channel type: "+t)
 
 		return
 	}
@@ -313,7 +321,7 @@ func testNewServer(t *testing.T) (err error) {
 		sshkrb5.OSHostname = old
 	}()
 
-	port, teardown, err := newServer(hostname, testr.New(t))
+	port, teardown, err := newServer(t.Context(), hostname, testr.New(t))
 	if err != nil {
 		return err
 	}

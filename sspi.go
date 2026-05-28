@@ -67,10 +67,6 @@ type Client struct {
 	logger logr.Logger
 }
 
-func (c *Client) usePassword() bool {
-	return c.domain != "" && c.username != "" && c.password != ""
-}
-
 // NewClient returns a new Client using the current user.
 func NewClient(options ...Option[Client]) (*Client, error) {
 	c := &Client{
@@ -143,13 +139,19 @@ func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 
 // DeleteSecContext is called by the ssh.Client to tear down any active
 // security context.
-func (c *Client) DeleteSecContext() (err error) {
+func (c *Client) DeleteSecContext() error {
+	var err error
+
 	if c.ctx != nil {
 		err = c.ctx.Release()
 		c.ctx = nil
 	}
 
-	return
+	return err
+}
+
+func (c *Client) usePassword() bool {
+	return c.domain != "" && c.username != "" && c.password != ""
 }
 
 // Server implements the ssh.GSSAPIServer interface.
@@ -228,11 +230,13 @@ func (s *Server) VerifyMIC(micField, micToken []byte) error {
 
 // DeleteSecContext is called by the ssh.ServerConn to tear down any active
 // security context.
-func (s *Server) DeleteSecContext() (err error) {
+func (s *Server) DeleteSecContext() error {
+	var err error
+
 	if s.ctx != nil {
 		err = s.ctx.Release()
 		s.ctx = nil
 	}
 
-	return
+	return err
 }

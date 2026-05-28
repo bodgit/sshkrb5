@@ -90,8 +90,7 @@ jobs:
           load: true
           tags: kdc
           target: kdc
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache
 
       - name: Build SSH image
         uses: docker/build-push-action@v6
@@ -100,8 +99,8 @@ jobs:
           load: true
           tags: ssh
           target: ssh
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache
 
       - name: Extract keytab
         uses: docker/build-push-action@v6
@@ -109,6 +108,7 @@ jobs:
           context: "{{defaultContext}}:testdata"
           outputs: type=local,dest=testdata
           target: keytab
+          cache-from: type=local,src=/tmp/.buildx-cache
 
       - name: Pull containers into Podman
         run: |

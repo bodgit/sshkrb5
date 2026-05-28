@@ -85,14 +85,6 @@ type Client struct {
 	logger logr.Logger
 }
 
-func (c *Client) usePassword() bool {
-	return c.domain != "" && c.username != "" && c.password != ""
-}
-
-func (c *Client) useKeytab() bool {
-	return c.domain != "" && c.username != "" && c.keytab != nil
-}
-
 // NewClient returns a new Client using the current user.
 func NewClient(options ...Option[Client]) (*Client, error) {
 	c := &Client{
@@ -161,6 +153,14 @@ func (c *Client) GetMIC(micField []byte) ([]byte, error) {
 // security context.
 func (c *Client) DeleteSecContext() error {
 	return nil
+}
+
+func (c *Client) usePassword() bool {
+	return c.domain != "" && c.username != "" && c.password != ""
+}
+
+func (c *Client) useKeytab() bool {
+	return c.domain != "" && c.username != "" && c.keytab != nil
 }
 
 // Server implements the ssh.GSSAPIServer interface.

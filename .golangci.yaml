@@ -16,7 +16,7 @@ linters:
     - dupl
     - dupword
     - durationcheck
-    #- err113
+    - err113
     - errcheck
     - errchkjson
     - errname
@@ -26,7 +26,7 @@ linters:
     - fatcontext
     - forbidigo
     - forcetypeassert
-    #- funcorder
+    - funcorder
     - funlen
     - ginkgolinter
     - gocheckcompilerdirectives
@@ -66,19 +66,19 @@ linters:
     - nilnesserr
     - nilnil
     - nlreturn
-    #- noctx
+    - noctx
     - nolintlint
-    #- nonamedreturns
+    - nonamedreturns
     - nosprintfhostport
     - paralleltest
-    #- perfsprint
+    - perfsprint
     - prealloc
     - predeclared
     - promlinter
     - protogetter
     - reassign
     - recvcheck
-    #- revive
+    - revive
     - rowserrcheck
     - sloglint
     - spancheck
@@ -87,7 +87,7 @@ linters:
     - tagalign
     - tagliatelle
     - testableexamples
-    #- testifylint
+    - testifylint
     - testpackage
     - thelper
     - tparallel

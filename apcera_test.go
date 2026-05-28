@@ -4,7 +4,6 @@
 package sshkrb5_test
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/bodgit/sshkrb5"
@@ -19,19 +18,19 @@ func TestNewClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Regexp(t, regexp.MustCompile(`\btest$`), whoami)
+	assert.Regexp(t, `\btest$`, whoami)
 }
 
 func TestNewClientWithCredentials(t *testing.T) {
 	t.Parallel()
 	_, err := testNewClientWithCredentials(t)
-	assert.Equal(t, sshkrb5.ErrNotSupported, err)
+	assert.ErrorIs(t, err, sshkrb5.ErrNotSupported)
 }
 
 func TestNewClientWithKeytab(t *testing.T) {
 	t.Parallel()
 	_, err := testNewClientWithKeytab(t)
-	assert.Equal(t, sshkrb5.ErrNotSupported, err)
+	assert.ErrorIs(t, err, sshkrb5.ErrNotSupported)
 }
 
 func TestNewServer(t *testing.T) {

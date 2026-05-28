@@ -4,6 +4,8 @@
 package sshkrb5
 
 import (
+	"errors"
+
 	"github.com/go-logr/logr"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/openshift/gssapi"
@@ -43,10 +45,12 @@ type Client struct {
 }
 
 // NewClient returns a new Client using the current user.
-func NewClient(options ...Option[Client]) (c *Client, err error) {
-	c = &Client{
+func NewClient(options ...Option[Client]) (*Client, error) {
+	c := &Client{
 		logger: logr.Discard(),
 	}
+
+	var err error
 
 	for _, option := range options {
 		if err = option(c); err != nil {
@@ -56,7 +60,7 @@ func NewClient(options ...Option[Client]) (c *Client, err error) {
 
 	c.lib, err = gssapi.Load(nil)
 
-	return
+	return c, err
 }
 
 // Close deletes any active security context and unloads any underlying
@@ -67,8 +71,16 @@ func (c *Client) Close() error {
 
 // InitSecContext is called by the ssh.Client to initialise or advance the
 // security context.
-func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) (b []byte, cont bool, err error) {
-	buffer, err := c.lib.MakeBufferString(target)
+//
+//nolint:funlen
+func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds bool) ([]byte, bool, error) {
+	var (
+		buffer  *gssapi.Buffer
+		service *gssapi.Name
+		err     error
+	)
+
+	buffer, err = c.lib.MakeBufferString(target)
 	if err != nil {
 		return nil, false, err
 	}
@@ -77,7 +89,7 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 		err = multierror.Append(err, buffer.Release()).ErrorOrNil()
 	}()
 
-	service, err := buffer.Name(c.lib.GSS_C_NT_HOSTBASED_SERVICE)
+	service, err = buffer.Name(c.lib.GSS_C_NT_HOSTBASED_SERVICE)
 	if err != nil {
 		return nil, false, err
 	}
@@ -106,10 +118,19 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 
 		fallthrough
 	case 0:
+		var (
+			ctx    *gssapi.CtxId
+			output *gssapi.Buffer
+		)
+
 		//nolint:lll
-		ctx, _, output, _, _, err := c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_MECH_KRB5, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
-		if err != nil && !c.lib.LastStatus.Major.ContinueNeeded() {
+		ctx, _, output, _, _, err = c.lib.InitSecContext(c.lib.GSS_C_NO_CREDENTIAL, c.ctx, service, c.lib.GSS_MECH_KRB5, gssapiFlags, 0, c.lib.GSS_C_NO_CHANNEL_BINDINGS, input)
+		if err != nil && !errors.Is(err, gssapi.ErrContinueNeeded) {
 			return nil, false, err
+		}
+
+		if errors.Is(err, gssapi.ErrContinueNeeded) {
+			err = nil
 		}
 
 		defer func() {
@@ -118,14 +139,19 @@ func (c *Client) InitSecContext(target string, token []byte, isGSSDelegCreds boo
 
 		c.ctx = ctx
 
-		return output.Bytes(), c.lib.LastStatus.Major.ContinueNeeded(), nil
+		return output.Bytes(), c.lib.LastStatus.Major.ContinueNeeded(), err
 	}
 }
 
 // GetMIC is called by the ssh.Client to authenticate the user using the
 // negotiated security context.
-func (c *Client) GetMIC(micField []byte) (b []byte, err error) {
-	message, err := c.lib.MakeBufferBytes(micField)
+func (c *Client) GetMIC(micField []byte) ([]byte, error) {
+	var (
+		message, token *gssapi.Buffer
+		err            error
+	)
+
+	message, err = c.lib.MakeBufferBytes(micField)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +160,7 @@ func (c *Client) GetMIC(micField []byte) (b []byte, err error) {
 		err = multierror.Append(err, message.Release()).ErrorOrNil()
 	}()
 
-	token, err := c.ctx.GetMIC(gssapi.GSS_C_QOP_DEFAULT, message)
+	token, err = c.ctx.GetMIC(gssapi.GSS_C_QOP_DEFAULT, message)
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +174,11 @@ func (c *Client) GetMIC(micField []byte) (b []byte, err error) {
 
 // DeleteSecContext is called by the ssh.Client to tear down any active
 // security context.
-func (c *Client) DeleteSecContext() (err error) {
-	err = c.ctx.DeleteSecContext()
+func (c *Client) DeleteSecContext() error {
+	err := c.ctx.DeleteSecContext()
 	c.ctx = c.lib.GSS_C_NO_CONTEXT
 
-	return
+	return err
 }
 
 // Server implements the ssh.GSSAPIServer interface.
@@ -166,11 +192,13 @@ type Server struct {
 }
 
 // NewServer returns a new Server.
-func NewServer(options ...Option[Server]) (s *Server, err error) {
-	s = &Server{
+func NewServer(options ...Option[Server]) (*Server, error) {
+	s := &Server{
 		strict: true,
 		logger: logr.Discard(),
 	}
+
+	var err error
 
 	for _, option := range options {
 		if err = option(s); err != nil {
@@ -180,7 +208,7 @@ func NewServer(options ...Option[Server]) (s *Server, err error) {
 
 	s.lib, err = gssapi.Load(nil)
 
-	return
+	return s, err
 }
 
 // Close deletes any active security context and unloads any underlying
@@ -192,18 +220,31 @@ func (s *Server) Close() error {
 // AcceptSecContext is called by the ssh.ServerConn to accept and advance the
 // security context.
 //
-//nolint:funlen
-func (s *Server) AcceptSecContext(token []byte) (b []byte, srcName string, cont bool, err error) {
-	var cred *gssapi.CredId
+//nolint:cyclop,funlen
+func (s *Server) AcceptSecContext(token []byte) ([]byte, string, bool, error) {
+	var (
+		cred          *gssapi.CredId
+		input, output *gssapi.Buffer
+		name          *gssapi.Name
+		ctx           *gssapi.CtxId
+		err           error
+	)
 
 	// equivalent of GSSAPIStrictAcceptorCheck
 	if s.strict { //nolint:nestif
-		hostname, err := osHostname()
+		var (
+			hostname string
+			buffer   *gssapi.Buffer
+			service  *gssapi.Name
+			oids     *gssapi.OIDSet
+		)
+
+		hostname, err = osHostname()
 		if err != nil {
 			return nil, "", false, err
 		}
 
-		buffer, err := s.lib.MakeBufferString("host@" + hostname)
+		buffer, err = s.lib.MakeBufferString("host@" + hostname)
 		if err != nil {
 			return nil, "", false, err
 		}
@@ -212,7 +253,7 @@ func (s *Server) AcceptSecContext(token []byte) (b []byte, srcName string, cont 
 			err = multierror.Append(err, buffer.Release()).ErrorOrNil()
 		}()
 
-		service, err := buffer.Name(s.lib.GSS_C_NT_HOSTBASED_SERVICE)
+		service, err = buffer.Name(s.lib.GSS_C_NT_HOSTBASED_SERVICE)
 		if err != nil {
 			return nil, "", false, err
 		}
@@ -221,7 +262,7 @@ func (s *Server) AcceptSecContext(token []byte) (b []byte, srcName string, cont 
 			err = multierror.Append(err, service.Release()).ErrorOrNil()
 		}()
 
-		oids, err := s.lib.MakeOIDSet(s.lib.GSS_MECH_KRB5)
+		oids, err = s.lib.MakeOIDSet(s.lib.GSS_MECH_KRB5)
 		if err != nil {
 			return nil, "", false, err
 		}
@@ -242,7 +283,7 @@ func (s *Server) AcceptSecContext(token []byte) (b []byte, srcName string, cont 
 		cred = s.lib.GSS_C_NO_CREDENTIAL
 	}
 
-	input, err := s.lib.MakeBufferBytes(token)
+	input, err = s.lib.MakeBufferBytes(token)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -252,9 +293,13 @@ func (s *Server) AcceptSecContext(token []byte) (b []byte, srcName string, cont 
 	}()
 
 	//nolint:dogsled
-	ctx, name, _, output, _, _, _, err := s.lib.AcceptSecContext(s.ctx, cred, input, s.lib.GSS_C_NO_CHANNEL_BINDINGS)
-	if err != nil && !s.lib.LastStatus.Major.ContinueNeeded() {
+	ctx, name, _, output, _, _, _, err = s.lib.AcceptSecContext(s.ctx, cred, input, s.lib.GSS_C_NO_CHANNEL_BINDINGS)
+	if err != nil && !errors.Is(err, gssapi.ErrContinueNeeded) {
 		return nil, "", false, err
+	}
+
+	if errors.Is(err, gssapi.ErrContinueNeeded) {
+		err = nil
 	}
 
 	defer func() {
@@ -263,7 +308,7 @@ func (s *Server) AcceptSecContext(token []byte) (b []byte, srcName string, cont 
 
 	s.ctx = ctx
 
-	return output.Bytes(), name.String(), s.lib.LastStatus.Major.ContinueNeeded(), nil
+	return output.Bytes(), name.String(), s.lib.LastStatus.Major.ContinueNeeded(), err
 }
 
 // VerifyMIC is called by the ssh.ServerConn to authenticate the user using
@@ -294,9 +339,9 @@ func (s *Server) VerifyMIC(micField, micToken []byte) (err error) {
 
 // DeleteSecContext is called by the ssh.ServerConn to tear down any active
 // security context.
-func (s *Server) DeleteSecContext() (err error) {
-	err = s.ctx.DeleteSecContext()
+func (s *Server) DeleteSecContext() error {
+	err := s.ctx.DeleteSecContext()
 	s.ctx = s.lib.GSS_C_NO_CONTEXT
 
-	return
+	return err
 }

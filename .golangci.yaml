@@ -1,8 +1,6 @@
----
-issues:
-  exclude-use-default: false
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - asasalint
     - asciicheck
@@ -18,17 +16,18 @@ linters:
     - dupl
     - dupword
     - durationcheck
-    - err113
+    #- err113
     - errcheck
     - errchkjson
     - errname
     - errorlint
     - exhaustive
+    - exptostd
     - fatcontext
     - forbidigo
     - forcetypeassert
+    #- funcorder
     - funlen
-    - gci
     - ginkgolinter
     - gocheckcompilerdirectives
     - gochecknoglobals
@@ -39,18 +38,16 @@ linters:
     - gocritic
     - gocyclo
     - godot
-    - gofmt
-    - gofumpt
+    - godox
     - goheader
-    - goimports
     - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
-    - gosimple
     - gosmopolitan
     - govet
     - grouper
+    - iface
     - importas
     - inamedparam
     - ineffassign
@@ -66,40 +63,59 @@ linters:
     - nakedret
     - nestif
     - nilerr
+    - nilnesserr
     - nilnil
     - nlreturn
-    - noctx
+    #- noctx
     - nolintlint
+    #- nonamedreturns
     - nosprintfhostport
     - paralleltest
-    - perfsprint
+    #- perfsprint
     - prealloc
     - predeclared
     - promlinter
     - protogetter
     - reassign
-    - revive
+    - recvcheck
+    #- revive
     - rowserrcheck
     - sloglint
     - spancheck
     - sqlclosecheck
     - staticcheck
-    - stylecheck
     - tagalign
     - tagliatelle
-    - tenv
     - testableexamples
-    - testifylint
+    #- testifylint
     - testpackage
     - thelper
     - tparallel
-    - typecheck
     - unconvert
     - unparam
     - unused
     - usestdlibvars
+    - usetesting
     - wastedassign
     - whitespace
-    - wrapcheck
+    #- wrapcheck
     - wsl
     - zerologlint
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

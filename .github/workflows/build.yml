@@ -14,12 +14,6 @@ jobs:
   test:
     name: Build and Test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        go:
-          - '1.22'
-          - '1.23'
 
     env:
       SSH_HOST: ssh.example.com
@@ -38,7 +32,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: 'go.mod'
 
       - name: Install Kerberos client
         run: |
@@ -46,20 +40,20 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libkrb5-dev krb5-user
 
       - name: golangci-lint (gokrb5)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         if: github.event_name == 'pull_request'
         with:
           only-new-issues: true
 
       - name: golangci-lint (apcera)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         if: github.event_name == 'pull_request'
         with:
           only-new-issues: true
           args: --build-tags apcera
 
       - name: golangci-lint (SSPI)
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         if: github.event_name == 'pull_request'
         with:
           only-new-issues: true
@@ -90,8 +84,7 @@ jobs:
           load: true
           tags: kdc
           target: kdc
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache
 
       - name: Build SSH image
         uses: docker/build-push-action@v6
@@ -100,8 +93,8 @@ jobs:
           load: true
           tags: ssh
           target: ssh
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,mode=max,dest=/tmp/.buildx-cache
 
       - name: Extract keytab
         uses: docker/build-push-action@v6
@@ -109,6 +102,7 @@ jobs:
           context: "{{defaultContext}}:testdata"
           outputs: type=local,dest=testdata
           target: keytab
+          cache-from: type=local,src=/tmp/.buildx-cache
 
       - name: Pull containers into Podman
         run: |

@@ -29,7 +29,7 @@ RUN yum install -y krb5-workstation && yum update -y && yum clean all
 COPY --chown=root:root krb5.conf /etc/krb5.conf
 RUN chmod 644 /etc/krb5.conf
 
-RUN yum install -y openssh-server authconfig && yum clean all
+RUN yum install -y openssh-server authselect && yum clean all
 COPY --from=kdc --chown=root:root /etc/ssh.keytab /etc/krb5.keytab
 RUN chmod 640 /etc/krb5.keytab
 
@@ -38,8 +38,10 @@ RUN systemctl enable sshd.service
 COPY --chown=root:root sshd_config /etc/ssh/sshd_config
 RUN chmod 600 /etc/ssh/sshd_config
 
-RUN authconfig --enablekrb5 --update
+RUN authselect select minimal --force
 RUN useradd test
+
+RUN chmod 0400 /etc/shadow
 
 FROM scratch AS keytab
 COPY --from=kdc /etc/test.keytab /test.keytab

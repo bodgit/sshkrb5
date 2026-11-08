@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:10-ubi-init@sha256:c383797bb0219908988ea2ef03e9ba03428461a1f588c2ac9f084617ae61fe5a AS kdc
+FROM rockylinux/rockylinux:10-ubi-init@sha256:beb7f5c27fa07d6f8e263b4db211b987d6d86fa809532125af29b834b982b6cd AS kdc
 
 EXPOSE 8088
 EXPOSE 8464
@@ -21,7 +21,7 @@ RUN kadmin.local ktadd -norandkey -k /etc/test.keytab test
 RUN kadmin.local addprinc -randkey host/ssh.example.com
 RUN kadmin.local ktadd -k /etc/ssh.keytab host/ssh.example.com
 
-FROM rockylinux/rockylinux:10-ubi-init@sha256:c383797bb0219908988ea2ef03e9ba03428461a1f588c2ac9f084617ae61fe5a AS ssh
+FROM rockylinux/rockylinux:10-ubi-init@sha256:beb7f5c27fa07d6f8e263b4db211b987d6d86fa809532125af29b834b982b6cd AS ssh
 
 EXPOSE 8022
 
